@@ -1,0 +1,188 @@
+<div class="page-container">
+  <div class="header">
+    <div>
+      <h1>Hisob-kitob</h1>
+      @if (orgName) {
+        <p class="subtitle">
+          <strong>{{ orgName }}</strong> AI ishlatgan tokenlar uchun to'laydi — summa har bir so'rov narxidan yig'iladi
+        </p>
+      } @else {
+        <p class="subtitle">Tashkilot tanlanmagan</p>
+      }
+    </div>
+    <mat-form-field appearance="outline" class="month-field" subscriptSizing="dynamic">
+      <mat-label>Oy</mat-label>
+      <input matInput type="month" [(ngModel)]="month" (change)="reload()" [max]="currentMonth">
+    </mat-form-field>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner diameter="36"></mat-spinner>
+    </div>
+  }
+
+  @if (!loading && !orgId) {
+    <div class="empty-state">
+      <mat-icon>apartment</mat-icon>
+      <p>Iltimos, avval yuqoridagi menyudan tashkilotni tanlang.</p>
+    </div>
+  }
+
+  @if (!loading && orgId && invoice) {
+    <div class="stats">
+      <div class="stat stat--primary">
+        <span class="stat__label">To'lov summasi</span>
+        <span class="stat__value">{{ invoice.costUzs | number:'1.0-2' }} <small>so'm</small></span>
+        <span class="stat__meta">{{ monthLabel }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">So'rovlar</span>
+        <span class="stat__value">{{ invoice.requests | number }}</span>
+        <span class="stat__meta">AI javoblari soni</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Kiruvchi tokenlar</span>
+        <span class="stat__value">{{ invoice.promptTokens | number }}</span>
+        <span class="stat__meta">savol, kontekst, hujjatlar</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Chiquvchi tokenlar</span>
+        <span class="stat__value">{{ invoice.completionTokens | number }}</span>
+        <span class="stat__meta">AI yozgan javoblar</span>
+      </div>
+    </div>
+
+    <mat-card class="section">
+      <div class="section__head">
+        <h3>Joriy narx</h3>
+        <span class="chip" [class.chip--custom]="invoice.currentRate.custom">
+          {{ invoice.currentRate.custom ? 'Maxsus narx' : 'Platforma narxi' }}
+        </span>
+      </div>
+      <div class="rate-line">
+        <div><span class="muted">Kiruvchi</span> <strong>{{ invoice.currentRate.inputPricePerMillion | number:'1.0-2' }}</strong> so'm / 1 mln token</div>
+        <div><span class="muted">Chiquvchi</span> <strong>{{ invoice.currentRate.outputPricePerMillion | number:'1.0-2' }}</strong> so'm / 1 mln token</div>
+      </div>
+      <p class="note">Narx o'zgarsa, faqat keyingi so'rovlarga qo'llanadi — o'tgan sarf o'sha paytdagi narx bilan hisoblangan.</p>
+    </mat-card>
+
+    <mat-card class="section">
+      <div class="section__head"><h3>Kunlik sarf</h3></div>
+      @if (invoice.days.length) {
+        <table class="grid">
+          <thead>
+            <tr><th>Sana</th><th class="num">So'rovlar</th><th class="num">Tokenlar</th><th class="num">Summa, so'm</th></tr>
+          </thead>
+          <tbody>
+            @for (d of invoice.days; track d.day) {
+              <tr>
+                <td>{{ d.day | date:'dd.MM.yyyy' }}</td>
+                <td class="num">{{ d.requests | number }}</td>
+                <td class="num">{{ d.tokens | number }}</td>
+                <td class="num">{{ d.costUzs | number:'1.0-2' }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Jami</td>
+              <td class="num">{{ invoice.requests | number }}</td>
+              <td class="num">{{ invoice.totalTokens | number }}</td>
+              <td class="num">{{ invoice.costUzs | number:'1.0-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      } @else {
+        <div class="empty-inline">
+          <mat-icon>receipt_long</mat-icon>
+          <span>{{ monthLabel }} oyida sarf yo'q.</span>
+        </div>
+      }
+    </mat-card>
+  }
+
+  @if (!loading && isSuperAdmin) {
+    <mat-card class="section">
+      <div class="section__head">
+        <h3>Narxlarni boshqarish</h3>
+        <app-help-tip>
+          Narx 1 mln token uchun so'mda beriladi. Kiruvchi — AI'ga yuborilgan matn (savol, tarix, hujjat
+          parchalari), chiquvchi — AI yozgan javob. O'zgarish bir daqiqa ichida barcha yangi so'rovlarga qo'llanadi.
+        </app-help-tip>
+      </div>
+
+      <div class="rate-form">
+        <span class="rate-form__title">Platforma narxi (barcha tashkilotlar uchun)</span>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Kiruvchi, so'm / 1 mln</mat-label>
+          <input matInput type="number" min="0" step="0.01" [(ngModel)]="defaultForm.inputPricePerMillion">
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Chiquvchi, so'm / 1 mln</mat-label>
+          <input matInput type="number" min="0" step="0.01" [(ngModel)]="defaultForm.outputPricePerMillion">
+        </mat-form-field>
+        <button mat-flat-button color="primary" (click)="saveDefaultRate()"
+                [disabled]="saving || !valid(defaultForm)">Saqlash</button>
+      </div>
+      @if (defaultRate?.updatedAt) {
+        <p class="note">
+          Oxirgi o'zgarish: {{ defaultRate?.updatedAt | date:'dd.MM.yyyy HH:mm' }}{{ defaultRate?.updatedBy ? ' · ' + defaultRate?.updatedBy : '' }}
+        </p>
+      }
+
+      @if (orgId) {
+        <div class="rate-form">
+          <span class="rate-form__title">
+            «{{ orgName }}» uchun maxsus narx
+            <app-help-tip>Bo'sh qoldirilsa tashkilot platforma narxini to'laydi.</app-help-tip>
+          </span>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Kiruvchi, so'm / 1 mln</mat-label>
+            <input matInput type="number" min="0" step="0.01" [(ngModel)]="orgForm.inputPricePerMillion">
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Chiquvchi, so'm / 1 mln</mat-label>
+            <input matInput type="number" min="0" step="0.01" [(ngModel)]="orgForm.outputPricePerMillion">
+          </mat-form-field>
+          <button mat-flat-button color="primary" (click)="saveOrgRate()"
+                  [disabled]="saving || !valid(orgForm)">Saqlash</button>
+          <button mat-stroked-button (click)="removeOrgRate()" [disabled]="saving || !invoice?.currentRate?.custom">
+            Platforma narxiga qaytarish
+          </button>
+        </div>
+      }
+    </mat-card>
+
+    <mat-card class="section">
+      <div class="section__head">
+        <h3>Barcha tashkilotlar · {{ monthLabel }}</h3>
+        <span class="total">Jami: <strong>{{ summaryTotal | number:'1.0-2' }}</strong> so'm</span>
+      </div>
+      @if (summary.length) {
+        <table class="grid">
+          <thead>
+            <tr><th>Tashkilot</th><th class="num">So'rovlar</th><th class="num">Tokenlar</th><th class="num">Summa, so'm</th></tr>
+          </thead>
+          <tbody>
+            @for (row of summary; track row.organizationId) {
+              <tr [class.is-current]="row.organizationId === orgId">
+                <td>
+                  {{ row.organizationName }}
+                  @if (row.customRate) {
+                    <span class="chip chip--custom chip--sm">maxsus narx</span>
+                  }
+                </td>
+                <td class="num">{{ row.requests | number }}</td>
+                <td class="num">{{ row.totalTokens | number }}</td>
+                <td class="num">{{ row.costUzs | number:'1.0-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <div class="empty-inline"><mat-icon>apartment</mat-icon><span>Tashkilotlar yo'q.</span></div>
+      }
+    </mat-card>
+  }
+</div>

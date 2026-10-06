@@ -1,0 +1,112 @@
+<div class="page-container">
+  <div class="header">
+    <div>
+      <div class="breadcrumb">
+        <a routerLink="/organizations">Tashkilotlar</a>
+        <mat-icon class="crumb-sep">chevron_right</mat-icon>
+        @if (currentOrg) {
+          <span>{{ currentOrg.name }}</span>
+        } @else {
+          <span>Vositalar</span>
+        }
+      </div>
+      <h1>Vositalar boshqaruvi</h1>
+      @if (currentOrg) {
+        <p class="subtitle">
+          <strong>{{ currentOrg.name }}</strong> uchun biriktirilgan dinamik vositalar va imkoniyatlar
+        </p>
+      }
+    </div>
+    <button mat-raised-button color="primary" (click)="addTool()" [disabled]="!orgId">
+      <mat-icon>add</mat-icon> Vosita qo'shish
+    </button>
+  </div>
+
+  @if (tools.length > 0) {
+    <table mat-table [dataSource]="tools" class="mat-elevation-z8">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef> Vosita nomi va tavsifi </th>
+        <td mat-cell *matCellDef="let tool">
+          <div class="tool-info-cell">
+            <code>{{tool.name}}</code>
+            <small class="tool-desc">{{tool.description}}</small>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef> Turi </th>
+        <td mat-cell *matCellDef="let tool">
+          <span class="badge badge-type" [ngClass]="tool.type.toLowerCase()">
+            {{tool.type}}
+          </span>
+          @if (connectionOf(tool); as conn) {
+            <span class="conn-badge" title="Autentifikatsiya shu ulanish orqali">
+              <mat-icon inline>hub</mat-icon> {{ conn }}
+            </span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="accessLevel">
+        <th mat-header-cell *matHeaderCellDef> Ruxsat darajasi </th>
+        <td mat-cell *matCellDef="let tool">
+          <span class="badge badge-access" [ngClass]="tool.accessLevel.toLowerCase()">
+            {{tool.accessLevel}}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="requiresConfirmation">
+        <th mat-header-cell *matHeaderCellDef> Tasdiqlash </th>
+        <td mat-cell *matCellDef="let tool">
+          @if (tool.requiresConfirmation) {
+            <span class="confirm-pill required" title="Inson tasdiqlashi talab etiladi">
+              <mat-icon>verified_user</mat-icon> Majburiy
+            </span>
+          } @else {
+            <span class="confirm-pill auto" title="Avtomatik bajariladi">
+              Avto
+            </span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="enabled">
+        <th mat-header-cell *matHeaderCellDef> Holati </th>
+        <td mat-cell *matCellDef="let tool">
+          <mat-slide-toggle [checked]="tool.enabled" [disabled]="busyToolId === tool.id"
+                            (change)="toggleTool(tool, $event)"></mat-slide-toggle>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef> Amallar </th>
+        <td mat-cell *matCellDef="let tool">
+          <div class="actions-wrapper">
+            <button mat-icon-button color="primary" (click)="editTool(tool.id)" title="Tahrirlash">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deleteTool(tool)" title="O'chirish"
+                    [disabled]="busyToolId === tool.id">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  }
+
+  @if (tools.length === 0 && !loading) {
+    <app-empty-state icon="handyman"
+      title="Hali vosita ulanmagan"
+      [text]="currentOrg ? 'Vosita — yordamchi chaqira oladigan API (talaba ma’lumoti, kontrakt qarzi, ariza yuborish). ' + currentOrg.name + ' uchun birinchisini qo‘shing — kod yozish shart emas.' : 'Avval tepadagi ro‘yxatdan tashkilotni tanlang.'">
+      <button mat-flat-button color="primary" (click)="addTool()" [disabled]="!orgId">
+        <mat-icon>add</mat-icon> Birinchi vositani qo'shish
+      </button>
+    </app-empty-state>
+  }
+</div>

@@ -1,0 +1,28 @@
+# OLIMA AI — frontend (admin panel + widget + landing, nginx)
+#
+# Serverda:  cd /opt/olima/frontend && docker compose up -d --build
+# Avval backend ko'tarilgan bo'lishi kerak: u "olima_net" tarmog'ini yaratadi,
+# nginx /api/** ni shu tarmoq orqali olima-api:8080 ga uzatadi.
+#
+# Port faqat 127.0.0.1 ga ochiladi — tashqaridan HTTPS host'dagi nginx orqali keladi.
+
+name: olima-frontend
+
+services:
+  olima-web:
+    image: olima/web:latest
+    build: .
+    container_name: olima-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLIMA_PORT:-8095}:80"
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+    networks: [olima]
+
+networks:
+  olima:
+    name: olima_net
+    external: true

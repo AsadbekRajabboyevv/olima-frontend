@@ -1,0 +1,186 @@
+<div class="page-container">
+  <div class="breadcrumb">
+    <a routerLink="/organizations">Tashkilotlar</a>
+    <mat-icon class="crumb-sep">chevron_right</mat-icon>
+    @if (orgId) {
+      <a [routerLink]="['/organizations', orgId, 'tools']">Vositalar</a>
+      <mat-icon class="crumb-sep">chevron_right</mat-icon>
+    }
+    <span>{{ isNew ? "Vosita qo'shish" : "Vositani tahrirlash" }}</span>
+  </div>
+
+  <div class="header-section">
+    <h2>{{ isNew ? 'Yangi vosita yaratish' : 'Vositani tahrirlash: ' + (toolForm.get('name')?.value || '') }}</h2>
+    <p class="subtitle">
+      Vositalarni dinamik shaklda sozlang. AI yordamchi ushbu vositani backend kodini o'zgartirmasdan avtomatik ravishda aniqlaydi va ishlatadi.
+    </p>
+  </div>
+
+  <form [formGroup]="toolForm" (ngSubmit)="save()">
+    <mat-card class="form-section">
+      <mat-card-header>
+        <mat-card-title>Umumiy ma'lumotlar</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Vosita nomi (snake_case)</mat-label>
+          <input matInput formControlName="name" placeholder="masalan: get_student_attendance" required>
+          <app-help-tip matSuffix>Tashkilot doirasida unikal bo'lishi lozim (masalan: get_transfer_rules)</app-help-tip>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Vosita turi</mat-label>
+          <mat-select formControlName="type" required (selectionChange)="onTypeChange()">
+            @for (t of toolTypes; track t) {
+              <mat-option [value]="t">{{ toolTypeLabels[t] || t }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Tavsif (AI uchun muhim)</mat-label>
+          <textarea matInput formControlName="description" rows="3"
+                    placeholder="Vosita nima ish bajarishi va LLM uni qachon chaqirishi kerakligi haqida batafsil tavsif..."
+                    required></textarea>
+          <app-help-tip matSuffix>AI ushbu tavsifga asoslanib mazkur vositani ishga tushirish qarorini qabul qiladi.</app-help-tip>
+        </mat-form-field>
+
+        @if (toolForm.get('type')?.value === 'REST_API') {
+          <div class="rest-config-section">
+            <h4>REST API sozlamalari</h4>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Ulanish (autentifikatsiya)</mat-label>
+              <mat-select [formControl]="connectionControl">
+                <mat-option value="">— Ulanishsiz (ochiq API, to'liq URL) —</mat-option>
+                @for (c of connections; track c.name) {
+                  <mat-option [value]="c.name" [disabled]="!c.enabled">
+                    {{ c.name }} · {{ c.baseUrl }}{{ c.enabled ? '' : " (o'chiq)" }}
+                  </mat-option>
+                }
+              </mat-select>
+              <app-help-tip matSuffix>
+                Tizim login/parol yoki kalit talab qilsa, <a routerLink="/connections">Ulanishlar</a> bo'limida
+                ulanish yarating va shu yerda tanlang — login server tomonda avtomatik bajariladi.
+              </app-help-tip>
+            </mat-form-field>
+
+            <div class="rest-inputs">
+              <mat-form-field appearance="outline" class="method-field">
+                <mat-label>HTTP metodi</mat-label>
+                <mat-select [formControl]="httpMethodControl">
+                  @for (m of httpMethods; track m) {
+                    <mat-option [value]="m">{{ m }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="url-field">
+                <mat-label>{{ connectionControl.value ? "Endpoint yo'li" : "Endpoint URL manzili" }}</mat-label>
+                <input matInput [formControl]="endpointUrlControl"
+                       [placeholder]="connectionControl.value ? 'masalan: /students/{studentId}' : 'masalan: https://api.example.uz/students/{studentId}'">
+                <app-help-tip matSuffix>
+                  @if (selectedConnection; as c) {
+                    To'liq manzil: {{ c.baseUrl }}{{ endpointUrlControl.value || '' }}
+                  }
+                  @if (!connectionControl.value) {
+                    {{ '{' }}studentId{{ '}' }} kabi yo'l parametrlari avtomatik tarzda vosita argumentlari bilan almashtiriladi.
+                  }
+                </app-help-tip>
+              </mat-form-field>
+            </div>
+          </div>
+        }
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>JSON konfiguratsiyasi</mat-label>
+          <textarea matInput formControlName="configuration" rows="5"
+                    style="font-family: 'Consolas', monospace; font-size: 13px;"></textarea>
+          <app-help-tip matSuffix>Ijro mexanizmiga uzatiladigan JSON konfiguratsiyasi.</app-help-tip>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Ruxsat darajasi</mat-label>
+          <mat-select formControlName="accessLevel" required>
+            <mat-option value="READ">READ (Xavfsiz / Faqat o'qish)</mat-option>
+            <mat-option value="WRITE">WRITE (Ma'lumotlarni o'zgartiradi)</mat-option>
+            <mat-option value="SENSITIVE">SENSITIVE (Yuqori xavfsizlik talab etiladi)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="checkbox-group">
+          <mat-checkbox formControlName="requiresConfirmation" color="warn">
+            <strong>Tasdiqlash talab etiladi</strong> (Foydalanuvchi tasdiqlamaguncha to'xtatib turiladi)
+          </mat-checkbox>
+          <mat-checkbox formControlName="enabled" color="primary">
+            Faol
+          </mat-checkbox>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="form-section parameters-section">
+      <mat-card-header>
+        <mat-card-title>Vosita parametrlari (AI uchun sxema)</mat-card-title>
+        <button type="button" mat-stroked-button color="primary" (click)="addParameter()">
+          <mat-icon>add</mat-icon> Parametr qo'shish
+        </button>
+      </mat-card-header>
+
+      <mat-card-content formArrayName="parameters">
+        @if (parameters.length === 0) {
+          <p class="param-help">
+            Parametrlar belgilanmagan. Agar vosita kiruvchi ma'lumotlarni talab qilsa (masalan: studentId, query), "Parametr qo'shish" tugmasini bosing.
+          </p>
+        }
+
+        @for (param of parameters.controls; track param; let i = $index) {
+          <div class="parameter-row" [formGroupName]="i">
+            <mat-form-field appearance="outline" class="param-name">
+              <mat-label>Parametr nomi</mat-label>
+              <input matInput formControlName="name" placeholder="masalan: studentId" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="param-type">
+              <mat-label>Turi</mat-label>
+              <mat-select formControlName="type" required>
+                @for (t of parameterTypes; track t) {
+                  <mat-option [value]="t">{{ t }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="param-desc">
+              <mat-label>AI uchun tavsif</mat-label>
+              <input matInput formControlName="description" placeholder="masalan: Talabaning unikal ID raqami">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="param-default">
+              <mat-label>Sukut qiymat</mat-label>
+              <input matInput formControlName="defaultValue" placeholder="ixtiyoriy">
+              <app-help-tip matSuffix>AI bermasa shu yuboriladi</app-help-tip>
+            </mat-form-field>
+
+            <mat-checkbox formControlName="required" class="param-req">Majburiy</mat-checkbox>
+
+            <button type="button" mat-icon-button color="warn" (click)="removeParameter(i)" title="Parametrni o'chirish">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <div class="actions">
+      <button type="button" mat-button (click)="goBack()">Bekor qilish</button>
+      @if (toolForm.invalid && toolForm.touched) {
+        <span class="form-hint">
+          Qizil belgilangan maydonlarni to'ldiring
+        </span>
+      }
+      <button type="submit" mat-raised-button color="primary" [disabled]="saving">
+        <mat-icon>save</mat-icon> {{ saving ? 'Saqlanmoqda…' : (isNew ? "Vosita yaratish" : "O'zgarishlarni saqlash") }}
+      </button>
+    </div>
+  </form>
+</div>

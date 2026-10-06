@@ -1,0 +1,129 @@
+.page-container {
+  max-width: 950px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+.breadcrumb a {
+  color: #1a237e;
+  text-decoration: none;
+  font-weight: 500;
+}
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+.crumb-sep {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+}
+.header-section {
+  margin-bottom: 24px;
+}
+.header-section h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #1a237e;
+}
+.subtitle {
+  margin: 6px 0 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.form-section {
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+.form-section mat-card-header {
+  margin-bottom: 16px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.full-width {
+  grid-column: 1 / -1;
+}
+.rest-config-section {
+  grid-column: 1 / -1;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.rest-config-section h4 {
+  margin: 0 0 12px 0;
+  color: #334155;
+  font-size: 14px;
+}
+.rest-inputs {
+  display: flex;
+  gap: 16px;
+}
+.method-field {
+  width: 140px;
+}
+.url-field {
+  flex: 1;
+}
+.checkbox-group {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  grid-column: 1 / -1;
+  padding: 8px 0;
+}
+.parameters-section mat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.param-help {
+  color: #94a3b8;
+  font-size: 14px;
+  padding: 12px 0;
+}
+.parameter-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.param-name {
+  width: 180px;
+}
+.param-type {
+  width: 120px;
+}
+.param-desc {
+  flex: 1;
+}
+.param-default {
+  width: 150px;
+}
+.param-req {
+  margin: 0 8px;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+}
+.form-hint {
+  color: #dc2626;
+  font-size: 13px;
+}
