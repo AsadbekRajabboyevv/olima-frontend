@@ -6,12 +6,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TelegramApiService } from '../../features/telegram/data/telegram-api.service';
 import { OrgContextService } from '../../core/org/org-context.service';
-import { TelegramBotConfig } from '../../models';
+import { TelegramBotConfig, TelegramUpdateMode } from '../../models';
+import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpTipComponent } from '../../components/help-tip.component';
 
@@ -27,6 +29,7 @@ import { HelpTipComponent } from '../../components/help-tip.component';
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
+    MatButtonToggleModule,
     MatProgressSpinnerModule,
     MatDialogModule,
     HelpTipComponent
@@ -61,12 +64,32 @@ import { HelpTipComponent } from '../../components/help-tip.component';
           <span class="detail-label">Token</span>
           <code>{{ config.maskedToken }}</code>
         </div>
-        <div class="detail-row">
+        <div class="detail-row" *ngIf="!isSuperAdmin">
+          <span class="detail-label">Ulanish rejimi</span>
+          <span>{{ modeLabel(config.updateMode) }}</span>
+        </div>
+        <div class="detail-row" *ngIf="config.webhookUrl">
           <span class="detail-label">Webhook manzili</span>
           <code class="webhook-url">{{ config.webhookUrl }}</code>
         </div>
 
         <p class="hint">Botga <a [href]="'https://t.me/' + config.botUsername" target="_blank" rel="noopener noreferrer">shu havola</a> orqali yozing — u xuddi veb-chatdagidek javob beradi va kontekstni eslab qoladi.</p>
+
+        <div class="mode-section" *ngIf="isSuperAdmin">
+          <h3>Ulanish rejimi</h3>
+          <div class="mode-row">
+            <mat-button-toggle-group [(ngModel)]="updateMode" [disabled]="saving" hideSingleSelectionIndicator>
+              <mat-button-toggle value="WEBHOOK">Webhook</mat-button-toggle>
+              <mat-button-toggle value="LONG_POLLING">Long polling</mat-button-toggle>
+            </mat-button-toggle-group>
+            <button mat-stroked-button color="primary" (click)="saveMode()" [disabled]="saving || updateMode === config.updateMode">
+              Saqlash
+            </button>
+          </div>
+          <p class="mode-hint">{{ modeHint(updateMode) }}</p>
+          <p class="error-message" *ngIf="modeError">{{ modeError }}</p>
+          <p class="ok-message" *ngIf="modeSaved">{{ modeSaved }}</p>
+        </div>
 
         <div class="notify-section">
           <h3>Murojaatlar bildirishnomasi</h3>
@@ -111,6 +134,15 @@ import { HelpTipComponent } from '../../components/help-tip.component';
           <input matInput [(ngModel)]="notificationChatId" placeholder="-1001234567890" [disabled]="saving">
           <app-help-tip matSuffix>Tasdiqlangan murojaatlar shu chatga yuboriladi</app-help-tip>
         </mat-form-field>
+
+        <div class="mode-section connect-mode" *ngIf="isSuperAdmin">
+          <h3>Ulanish rejimi</h3>
+          <mat-button-toggle-group [(ngModel)]="updateMode" [disabled]="saving" hideSingleSelectionIndicator>
+            <mat-button-toggle value="WEBHOOK">Webhook</mat-button-toggle>
+            <mat-button-toggle value="LONG_POLLING">Long polling</mat-button-toggle>
+          </mat-button-toggle-group>
+          <p class="mode-hint">{{ modeHint(updateMode) }}</p>
+        </div>
 
         <p class="error-message" *ngIf="errorMessage">{{ errorMessage }}</p>
 
@@ -162,6 +194,12 @@ import { HelpTipComponent } from '../../components/help-tip.component';
 
     .actions { margin-top: 16px; }
 
+    .mode-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 16px; }
+    .mode-section h3 { margin: 0 0 10px; font-size: 15px; color: #1a237e; }
+    .connect-mode { border-top: none; margin: 0 0 16px; padding-top: 0; }
+    .mode-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .mode-hint { font-size: 13px; color: #64748b; margin: 8px 0 0; }
+
     .notify-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 16px; }
     .notify-section h3 { margin: 0 0 4px; font-size: 15px; color: #1a237e; }
     .notify-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
@@ -179,6 +217,10 @@ export class TelegramComponent implements OnInit {
   private readonly orgContext = inject(OrgContextService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly authService = inject(AuthService);
+
+  /** Rejimni faqat SUPER_ADMIN tanlaydi — backend ham shuni tekshiradi */
+  readonly isSuperAdmin = this.authService.isSuperAdmin();
 
   orgId = '';
   config: TelegramBotConfig | null = null;
@@ -188,6 +230,9 @@ export class TelegramComponent implements OnInit {
   notificationChatId = '';
   errorMessage = '';
   savedMessage = '';
+  updateMode: TelegramUpdateMode = 'WEBHOOK';
+  modeError = '';
+  modeSaved = '';
 
   ngOnInit(): void {
     this.orgContext.orgId$
@@ -225,6 +270,7 @@ export class TelegramComponent implements OnInit {
 
   private setConfig(config: TelegramBotConfig | null): void {
     this.config = config;
+    this.updateMode = config?.updateMode ?? 'WEBHOOK';
     this.notificationChatId = config?.notificationChatId != null ? String(config.notificationChatId) : '';
   }
 
@@ -232,6 +278,43 @@ export class TelegramComponent implements OnInit {
     const raw = this.notificationChatId.trim();
     if (!raw) return null;
     return /^-?\d+$/.test(raw) ? Number(raw) : undefined;
+  }
+
+  modeLabel(mode: TelegramUpdateMode): string {
+    return mode === 'LONG_POLLING' ? 'Long polling' : 'Webhook';
+  }
+
+  modeHint(mode: TelegramUpdateMode): string {
+    return mode === 'LONG_POLLING'
+      ? "Server xabarlarni Telegram'dan o'zi so'rab oladi — kiruvchi ulanish kerak emas. Telegram serverga barqaror ulana olmaydigan tarmoqlar uchun."
+      : "Telegram xabarlarni serverga o'zi yuboradi. Server internetdan HTTPS orqali ochiq bo'lishi va Telegram unga barqaror ulana olishi kerak.";
+  }
+
+  saveMode(): void {
+    if (!this.config || this.updateMode === this.config.updateMode) {
+      return;
+    }
+    this.saving = true;
+    this.modeError = '';
+    this.modeSaved = '';
+    this.cdr.markForCheck();
+
+    // Token bo'sh — backend saqlangan tokenni ishlatadi; chat ID o'zgarmaydi
+    this.telegramApi.saveTelegramConfig(this.orgId, '', this.config.notificationChatId ?? null, this.updateMode)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (config) => {
+          this.setConfig(config);
+          this.saving = false;
+          this.modeSaved = 'Rejim saqlandi';
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.saving = false;
+          this.modeError = err?.error?.message || "Rejimni o'zgartirishda xatolik yuz berdi";
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   notificationChanged(): boolean {
@@ -280,7 +363,7 @@ export class TelegramComponent implements OnInit {
     this.errorMessage = '';
     this.cdr.markForCheck();
 
-    this.telegramApi.saveTelegramConfig(this.orgId, this.botToken.trim(), chatId)
+    this.telegramApi.saveTelegramConfig(this.orgId, this.botToken.trim(), chatId, this.isSuperAdmin ? this.updateMode : null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (config) => {

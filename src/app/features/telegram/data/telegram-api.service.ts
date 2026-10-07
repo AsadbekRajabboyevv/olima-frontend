@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { TelegramBotConfig } from '../telegram.models';
+import { TelegramBotConfig, TelegramUpdateMode } from '../telegram.models';
 
 @Injectable({
   providedIn: 'root'
@@ -14,10 +14,16 @@ export class TelegramApiService {
     return this.http.get<TelegramBotConfig>(`${this.baseUrl}/telegram/config?organizationId=${organizationId}`);
   }
 
-  saveTelegramConfig(organizationId: string, botToken: string, notificationChatId?: number | null): Observable<TelegramBotConfig> {
+  /** updateMode ni faqat SUPER_ADMIN yuboradi; null — joriy rejim saqlanadi */
+  saveTelegramConfig(
+    organizationId: string,
+    botToken: string,
+    notificationChatId?: number | null,
+    updateMode?: TelegramUpdateMode | null
+  ): Observable<TelegramBotConfig> {
     return this.http.post<TelegramBotConfig>(
       `${this.baseUrl}/telegram/config?organizationId=${organizationId}`,
-      { botToken, notificationChatId: notificationChatId ?? null }
+      { botToken, notificationChatId: notificationChatId ?? null, updateMode: updateMode ?? null }
     );
   }
 
